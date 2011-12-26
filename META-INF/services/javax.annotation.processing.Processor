@@ -1,0 +1,3 @@
+guitplugin.EventProcessor
+guitplugin.GuitPresenterProcessor
+guitplugin.GuitServiceProcessor
