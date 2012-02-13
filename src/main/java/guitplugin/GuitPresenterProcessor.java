@@ -19,7 +19,6 @@ import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
-import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -58,8 +57,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   private Filer filer;
 
   private Types typeUtils;
-
-  private Messager messager;
+  private ProcessingEnvironment env;
 
   private void collectGetters(HashMap<String, ExecutableElement> validFields, TypeElement eventType) {
     if (eventType == null) {
@@ -130,14 +128,15 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    ProcessingEnvironment env = processingEnv;
+    env = processingEnv;
     this.elementsUtil = env.getElementUtils();
     this.filer = env.getFiler();
     this.typeUtils = env.getTypeUtils();
-    this.messager = env.getMessager();
 
     for (TypeElement ann : annotations) {
       for (Element e : roundEnv.getElementsAnnotatedWith(ann)) {
+        printMessage(Kind.ERROR, "Este es un mesnage", e);
+
         if (e.getKind().equals(ElementKind.CLASS)) {
           TypeElement d = (TypeElement) e;
           try {
@@ -171,11 +170,11 @@ public class GuitPresenterProcessor extends AbstractProcessor {
               if (m.getAnnotation(GwtDisplay.class) != null) {
                 Collection<? extends VariableElement> parameters = m.getParameters();
                 if (parameters.size() != 1) {
-                  messager.printMessage(Kind.ERROR, containerError, m);
+                  printMessage(Kind.ERROR, containerError, m);
                 }
                 VariableElement parameter = parameters.iterator().next();
                 if (!parameter.asType().toString().equals("com.google.gwt.user.client.ui.IsWidget")) {
-                  messager.printMessage(Kind.ERROR, containerError, parameter);
+                  printMessage(Kind.ERROR, containerError, parameter);
                 }
                 processContainerMethod(d, m);
               }
@@ -187,6 +186,10 @@ public class GuitPresenterProcessor extends AbstractProcessor {
       }
     }
     return false;
+  }
+
+  private void printMessage(Kind kind, String msg, Element e) {
+    env.getMessager().printMessage(kind, msg, e);
   }
 
   private boolean isWidget(TypeElement d) {
@@ -306,12 +309,12 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     try {
       namesMap = GuitViewHelper.findUiFields(filer, classDeclaration, true);
     } catch (SAXParseException e) {
-      messager.printMessage(Kind.ERROR, String.format("Error parsing XML (line "
-          + e.getLineNumber() + "): " + e.getMessage()), classDeclaration);
+      printMessage(Kind.ERROR, String.format("Error parsing XML (line " + e.getLineNumber() + "): "
+          + e.getMessage()), classDeclaration);
       return;
     } catch (Exception e) {
       e.printStackTrace();
-      messager.printMessage(Kind.ERROR, e.toString(), classDeclaration);
+      printMessage(Kind.ERROR, e.toString(), classDeclaration);
       return;
     }
 
@@ -338,7 +341,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           if (e.getKey().getSimpleName().toString().equals("autofocus")) {
             String field = (String) e.getValue().getValue();
             if (!names.contains(field)) {
-              messager.printMessage(Kind.ERROR, viewName + ". " + "The field '" + field
+              printMessage(Kind.ERROR, viewName + ". " + "The field '" + field
                   + "' is not declared in the view. Valid fields: " + fieldsToString(names), e
                   .getKey());
             }
@@ -354,13 +357,12 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           }
         }
         if (!hasDriver) {
-          messager
-              .printMessage(
-                  Kind.ERROR,
-                  viewName
-                      + ". "
-                      + "This class does not have a 'driver' field. i.e SimpleBeanEditorDriver<Person, ?> driver; or RequestFactoryEditorDriver<Person, ?> driver;",
-                  classDeclaration);
+          printMessage(
+              Kind.ERROR,
+              viewName
+                  + ". "
+                  + "This class does not have a 'driver' field. i.e SimpleBeanEditorDriver<Person, ?> driver; or RequestFactoryEditorDriver<Person, ?> driver;",
+              classDeclaration);
         }
       }
     }
@@ -400,7 +402,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
             ElementKind kind = f.getKind();
             if (!provided && kind.isClass()) {
-              messager.printMessage(Kind.ERROR, viewName + ". "
+              printMessage(Kind.ERROR, viewName + ". "
                   + "The type of a @ViewField must be an interface", f);
             }
 
@@ -409,7 +411,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             }
 
             if (!names.contains(fieldName)) {
-              messager.printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
+              printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
                   + "' is not declared in the view. Valid fields: " + fieldsToString(names), f);
             }
 
@@ -452,7 +454,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
               for (AnnotationValue value : viewFields) {
                 String field = (String) value.getValue();
                 if (!names.contains(field)) {
-                  messager.printMessage(Kind.ERROR, viewName + ". " + "The field '" + field
+                  printMessage(Kind.ERROR, viewName + ". " + "The field '" + field
                       + "' is not declared in the view. Valid fields: " + fieldsToString(names), m);
                 }
               }
@@ -473,14 +475,14 @@ public class GuitPresenterProcessor extends AbstractProcessor {
               && !"com.google.gwt.event.shared.GwtEvent".equals(eventType.getQualifiedName())) {
             String simpleName = eventType.getSimpleName().toString();
             if (!simpleName.endsWith("Event")) {
-              messager.printMessage(Kind.ERROR, viewName + ". "
+              printMessage(Kind.ERROR, viewName + ". "
                   + "The event type does not match with the convention, it must end with 'Event'",
                   eventTypeDeclaration);
             }
 
             String currentEventName = eventClassNameToEventName(simpleName);
             if (!eventName.equals(currentEventName)) {
-              messager.printMessage(Kind.ERROR, viewName + ". " + "The method name must end with '"
+              printMessage(Kind.ERROR, viewName + ". " + "The method name must end with '"
                   + currentEventName + "'", m);
             }
           } else {
@@ -497,7 +499,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             }
 
             if (eventType == null) {
-              messager.printMessage(Kind.WARNING,
+              printMessage(Kind.WARNING,
                   "The event cannot be found. Do you see any typo in the name? '" + eventName
                       + "'. i.e: ClickEvent -> click", m);
             }
@@ -506,20 +508,19 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           fields.remove(lastIndex);
           for (String part : fields) {
             if (!names.contains(part)) {
-              messager.printMessage(Kind.ERROR, viewName + ". " + "The field '" + part
+              printMessage(Kind.ERROR, viewName + ". " + "The field '" + part
                   + "' is not declared in the view. Valid fields: " + fieldsToString(names), m);
               break;
             }
           }
         } else {
           if (eventType == null) {
-            messager
-                .printMessage(
-                    Kind.ERROR,
-                    viewName
-                        + ". "
-                        + "When using the @ViewFields annotation you need to specify the event type on the @ViewHandler annotation",
-                    m);
+            printMessage(
+                Kind.ERROR,
+                viewName
+                    + ". "
+                    + "When using the @ViewFields annotation you need to specify the event type on the @ViewHandler annotation",
+                m);
           }
         }
 
@@ -538,13 +539,12 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           }
           if (isAttribute) {
             if (p.asType().getKind().isPrimitive()) {
-              messager
-                  .printMessage(
-                      Kind.ERROR,
-                      viewName
-                          + ". "
-                          + "@Attribute parameters cannot be of a primitive type. The type must implement valueOf(String value)",
-                      p);
+              printMessage(
+                  Kind.ERROR,
+                  viewName
+                      + ". "
+                      + "@Attribute parameters cannot be of a primitive type. The type must implement valueOf(String value)",
+                  p);
             }
             continue;
           }
@@ -561,7 +561,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             }
 
             if (!validFields.keySet().contains(part)) {
-              messager.printMessage(Kind.ERROR, viewName + ". " + "The event '"
+              printMessage(Kind.ERROR, viewName + ". " + "The event '"
                   + eventType.getQualifiedName() + "' does not have a getter method for '"
                   + sb.toString() + part + "'", p);
               break;
@@ -622,7 +622,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
         List<String> fields =
             new ArrayList<String>(Arrays.asList(m.getSimpleName().toString().split("[$]")));
         if (fields.size() != 2 || (!fields.get(0).equals("eventBus") && !fields.get(0).isEmpty())) {
-          messager.printMessage(Kind.ERROR,
+          printMessage(Kind.ERROR,
               "The method name must be 'eventBus${eventname}' or '${eventname}'", m);
           continue;
         }
@@ -634,15 +634,14 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             && !"com.google.gwt.event.shared.GwtEvent".equals(eventType.getQualifiedName())) {
           String simpleName = eventType.getSimpleName().toString();
           if (!simpleName.endsWith("Event")) {
-            messager.printMessage(Kind.ERROR,
+            printMessage(Kind.ERROR,
                 "The event type does not match with the convention, it must end with 'Event'",
                 eventTypeDeclaration);
           }
 
           String currentEventName = eventClassNameToEventName(simpleName);
           if (!eventName.equals(currentEventName)) {
-            messager.printMessage(Kind.ERROR, "The method name must end with '" + currentEventName
-                + "'", m);
+            printMessage(Kind.ERROR, "The method name must end with '" + currentEventName + "'", m);
           }
         } else {
           // String currentPackage =
@@ -679,7 +678,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             }
           }
           if (hasAttribute) {
-            messager.printMessage(Kind.ERROR,
+            printMessage(Kind.ERROR,
                 "@Attribute parameters are not allowed in EventBusHandler methods", p);
             continue;
           }
@@ -695,7 +694,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             }
 
             if (!validFields.keySet().contains(part)) {
-              messager.printMessage(Kind.ERROR, "The event '" + eventType.getQualifiedName()
+              printMessage(Kind.ERROR, "The event '" + eventType.getQualifiedName()
                   + "' does not have a getter method for '" + sb.toString() + part
                   + "'. Valid fields: " + validFields.keySet().toString(), p);
               continue;
