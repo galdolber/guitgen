@@ -135,8 +135,6 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
     for (TypeElement ann : annotations) {
       for (Element e : roundEnv.getElementsAnnotatedWith(ann)) {
-        printMessage(Kind.ERROR, "Este es un mesnage", e);
-
         if (e.getKind().equals(ElementKind.CLASS)) {
           TypeElement d = (TypeElement) e;
           try {

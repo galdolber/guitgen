@@ -16,6 +16,8 @@ public @interface GwtPresenter {
 
   String autofocus() default "";
 
+  int autofocusDelay() default 0;
+
   String placeName() default "";
 
   boolean isWidget() default false;
