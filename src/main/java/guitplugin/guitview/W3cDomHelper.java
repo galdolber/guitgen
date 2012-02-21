@@ -6,7 +6,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -43,7 +42,7 @@ public class W3cDomHelper {
     } catch (ParserConfigurationException e) {
       throw new RuntimeException(e);
     }
-    builder.setEntityResolver(new GwtResourceEntityResolver());
+//    builder.setEntityResolver(new GwtResourceEntityResolver());
     builder.setErrorHandler(new ErrorHandler() {
 
       @Override
@@ -100,63 +99,28 @@ public class W3cDomHelper {
 
   public void locateFile(Filer filer, final String pkg, final String file,
       ArrayList<LazyDocument> documents) {
-    FileObject f;
+
     try {
-      f = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg, file);
-    } catch (IOException e1) {
-      throw new RuntimeException(e1);
-    }
-    if (f != null) {
-      try {
-        final Document document = getBuilder().parse(f.openInputStream());
-        documents.add(new LazyDocument() {
-          @Override
-          public Document get() {
-            return document;
-          }
+      FileObject fview = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg + ".view", file);
+      final Document document = getBuilder().parse(fview.openInputStream());
+      documents.add(new LazyDocument() {
+        @Override
+        public Document get() {
+          return document;
+        }
 
-          @Override
-          public String getFileName() {
-            return file;
-          }
-        });
-        return;
-      } catch (FileNotFoundException e) {
-      } catch (SAXException e) {
-        throw new RuntimeException("XML error found in " + pkg + "." + file, e);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    FileObject fview;
-    try {
-      fview = filer.getResource(StandardLocation.SOURCE_PATH, pkg + ".view", file);
-    } catch (IOException e1) {
-      throw new RuntimeException(e1);
-    }
-    if (fview != null) {
-      try {
-        final Document document = getBuilder().parse(fview.openInputStream());
-        documents.add(new LazyDocument() {
-          @Override
-          public Document get() {
-            return document;
-          }
-
-          @Override
-          public String getFileName() {
-            return file;
-          }
-        });
-        return;
-      } catch (FileNotFoundException e) {
-        throw new RuntimeException("View file not found for " + pkg + ".view." + file, e);
-      } catch (SAXException e) {
-        throw new RuntimeException("XML error found in " + pkg + ".view." + file, e);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+        @Override
+        public String getFileName() {
+          return file;
+        }
+      });
+      return;
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException("View file not found for " + pkg + ".view." + file, e);
+    } catch (SAXException e) {
+      throw new RuntimeException("XML error found in " + pkg + ".view." + file, e);
+    } catch (Exception e) {
+      throw new RuntimeException(pkg + ".view." + file, e);
     }
   }
 
