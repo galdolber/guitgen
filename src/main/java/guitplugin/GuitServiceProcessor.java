@@ -42,11 +42,12 @@ public class GuitServiceProcessor extends AbstractProcessor {
   private Elements elementsUtil;
   private Filer filer;
   private Types typeUtils;
+  private ProcessingEnvironment env;
 
   @SuppressWarnings("unchecked")
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    ProcessingEnvironment env = processingEnv;
+    env = processingEnv;
     this.elementsUtil = env.getElementUtils();
     this.filer = env.getFiler();
     this.typeUtils = env.getTypeUtils();
@@ -245,7 +246,12 @@ public class GuitServiceProcessor extends AbstractProcessor {
                       writer.print(",");
                     }
 
-                    writer.print(((TypeElement) p).getQualifiedName().toString() + ".class");
+                    String type = p.asType().toString();
+                    int indexOf = type.indexOf("<");
+                    if (indexOf > 0) {
+                      type = type.substring(0, indexOf);
+                    }
+                    writer.print(type + ".class");
 
                     first = false;
                   }

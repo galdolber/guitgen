@@ -138,47 +138,53 @@ public class GuitPresenterProcessor extends AbstractProcessor {
       for (Element e : roundEnv.getElementsAnnotatedWith(ann)) {
         if (e.getKind().equals(ElementKind.CLASS)) {
           TypeElement d = (TypeElement) e;
-          generateBinder(d);
+          try {
+            generateBinder(d);
 
-          if (ann.equals(GwtController.class.getCanonicalName())) {
-            generateControllerSuper(d);
-            processController(d);
-          } else if (ann.getQualifiedName().toString().equals(aptPackage + "GwtPresenter")) {
-            HashMap<String, HashMap<String, String>> fieldsMap = null;
-            try {
-              fieldsMap = GuitViewHelper.findUiFields(filer, d);
-            } catch (SAXParseException ex) {
-              printMessage(Kind.ERROR, String.format("Error parsing XML (line "
-                  + ex.getLineNumber() + "): " + ex.getMessage()), d);
-              continue;
-            } catch (Exception ex) {
-              throw new RuntimeException(ex);
-            }
-
-            if (!isWidget(d)) {
-              generatePresenterSuper(d, fieldsMap);
-            } else {
-              generateWidgetSuper(d);
-            }
-            processController(d);
-            for (Entry<String, HashMap<String, String>> entry : fieldsMap.entrySet()) {
-              processPresenterWithOneXml(d, entry.getKey(), entry.getValue());
-            }
-          }
-
-          // Containers
-          for (ExecutableElement m : ElementFilter.methodsIn(elementsUtil.getAllMembers(d))) {
-            if (m.getAnnotation(GwtDisplay.class) != null) {
-              Collection<? extends VariableElement> parameters = m.getParameters();
-              if (parameters.size() != 1) {
-                printMessage(Kind.ERROR, containerError, m);
+            String annName = ann.getQualifiedName().toString();
+            if (annName.equals(GwtController.class.getCanonicalName())) {
+              generateControllerSuper(d);
+              processController(d);
+            } else if (annName.equals(aptPackage + "GwtPresenter")) {
+              HashMap<String, HashMap<String, String>> fieldsMap = null;
+              try {
+                fieldsMap = GuitViewHelper.findUiFields(filer, d);
+              } catch (SAXParseException ex) {
+                printMessage(Kind.ERROR, String.format("Error parsing XML (line "
+                    + ex.getLineNumber() + "): " + ex.getMessage()), d);
+                continue;
+              } catch (Exception ex) {
+                throw new RuntimeException(ex);
               }
-              VariableElement parameter = parameters.iterator().next();
-              if (!parameter.asType().toString().equals("com.google.gwt.user.client.ui.IsWidget")) {
-                printMessage(Kind.ERROR, containerError, parameter);
+
+              if (!isWidget(d)) {
+                generatePresenterSuper(d, fieldsMap);
+              } else {
+                generateWidgetSuper(d, fieldsMap);
               }
-              processContainerMethod(d, m);
+              processController(d);
+              for (Entry<String, HashMap<String, String>> entry : fieldsMap.entrySet()) {
+                processPresenterWithOneXml(d, entry.getKey(), entry.getValue());
+              }
             }
+
+            // Containers
+            for (ExecutableElement m : ElementFilter.methodsIn(elementsUtil.getAllMembers(d))) {
+              if (m.getAnnotation(GwtDisplay.class) != null) {
+                Collection<? extends VariableElement> parameters = m.getParameters();
+                if (parameters.size() != 1) {
+                  printMessage(Kind.ERROR, containerError, m);
+                }
+                VariableElement parameter = parameters.iterator().next();
+                if (!parameter.asType().toString().equals("com.google.gwt.user.client.ui.IsWidget")) {
+                  printMessage(Kind.ERROR, containerError, parameter);
+                }
+                processContainerMethod(d, m);
+              }
+            }
+          } catch (Exception ex) {
+            printMessage(Kind.ERROR, d.getQualifiedName() + ": " + ex.toString(), d);
+            printMessage(Kind.NOTE, d.getQualifiedName() + ": " + ex.toString(), d);
           }
         }
       }
@@ -249,18 +255,26 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     Generated.printGenerated(writer, simpleName);
     String extendsPresenter = getExtendsPresenter(classDeclaration);
     TypeElement extendsPresenterElement = elementsUtil.getTypeElement(extendsPresenter);
-    Set<String> allFields = hasField(extendsPresenterElement);
+    Set<String> allFields = getAllField(extendsPresenterElement);
     writer.println("public abstract class " + name + " extends " + extendsPresenter + "<"
         + simpleName + "Binder> {");
+
+    printDriver(classDeclaration, writer);
 
     printDependencies(classDeclaration, writer);
 
     for (Entry<String, String> entry : fieldsMap.entrySet().iterator().next().getValue().entrySet()) {
-      if (entry.getValue().startsWith("com.guit.client.dom")) {
-        if (!allFields.contains(entry.getKey())) {
+      if (!allFields.contains(entry.getKey())) {
+        if (entry.getValue().startsWith("com.guit.client.dom")) {
           writer.println();
           writer.println("  @com.guit.client.apt.Generated");
           writer.println("  @com.guit.client.binder.ViewField");
+          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
+        } else if (isPresenter(elementsUtil.getTypeElement(entry.getValue()))) {
+          writer.println();
+          writer.println("  @com.guit.client.apt.Generated");
+          writer.println("  @com.google.inject.Inject");
+          writer.println("  @com.guit.client.binder.ViewField(provided = true)");
           writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
         }
       }
@@ -270,7 +284,29 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     writer.close();
   }
 
-  private Set<String> hasField(TypeElement clazz) {
+  private boolean isPresenter(TypeElement type) {
+    List<? extends AnnotationMirror> annotations = type.getAnnotationMirrors();
+    for (AnnotationMirror ann : annotations) {
+      Element asElement = ann.getAnnotationType().asElement();
+      String qualifiedName = ((TypeElement) asElement).getQualifiedName().toString();
+      if (qualifiedName.equals(aptPackage + "GwtPresenter")) {
+        return true;
+      }
+    }
+
+    for (TypeMirror i : type.getInterfaces()) {
+      if (i.toString().equals("com.guit.client.Presenter")) {
+        return true;
+      }
+    }
+    Element superclass = typeUtils.asElement(type.getSuperclass());
+    if (superclass != null) {
+      return isPresenter((TypeElement) superclass);
+    }
+    return false;
+  }
+
+  private Set<String> getAllField(TypeElement clazz) {
     HashSet<String> allFields = new HashSet<String>();
     for (VariableElement f : ElementFilter.fieldsIn(elementsUtil.getAllMembers(clazz))) {
       allFields.add(f.getSimpleName().toString());
@@ -308,7 +344,38 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     }
   }
 
-  private void generateWidgetSuper(TypeElement classDeclaration) {
+  private void printDriver(TypeElement classDeclaration, PrintWriter writer) {
+    Collection<? extends AnnotationMirror> annotations = classDeclaration.getAnnotationMirrors();
+    for (AnnotationMirror a : annotations) {
+      Element decl = a.getAnnotationType().asElement();
+      if (decl == null) {
+        continue;
+      }
+
+      String qualifiedName = ((TypeElement) decl).getQualifiedName().toString();
+      if (qualifiedName.equals("com.guit.client.binder.GwtEditor")) {
+        String pojo = null;
+        String base = "com.google.gwt.editor.client.SimpleBeanEditorDriver";
+        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : a
+            .getElementValues().entrySet()) {
+          String name = entry.getKey().getSimpleName().toString();
+          if (name.equals("pojo")) {
+            pojo = entry.getValue().getValue().toString();
+          } else if (name.equals("base")) {
+            base = entry.getValue().getValue().toString();
+          }
+        }
+        if (pojo != null) {
+          writer.println();
+          writer.println("  " + base + "<" + pojo + ", ?> driver;");
+        }
+        return;
+      }
+    }
+  }
+
+  private void generateWidgetSuper(TypeElement classDeclaration,
+      HashMap<String, HashMap<String, String>> fieldsMap) {
     String packageName = elementsUtil.getPackageOf(classDeclaration).getQualifiedName().toString();
     String simpleName = classDeclaration.getSimpleName().toString();
     String name = simpleName + "Widget";
@@ -322,6 +389,13 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     Generated.printGeneratedImport(writer);
     writer.println();
 
+    String extendsPresenter = getExtendsPresenter(classDeclaration);
+    Set<String> allFields = null;
+    if (extendsPresenter.equals("com.guit.client.GuitPresenter")) {
+      TypeElement extendsPresenterElement = elementsUtil.getTypeElement(extendsPresenter);
+      allFields = getAllField(extendsPresenterElement);
+    }
+
     String binderName = simpleName + "Binder";
     Generated.printGenerated(writer, simpleName);
     writer.println("public abstract class " + name + " extends GuitWidget<" + binderName + "> {");
@@ -329,6 +403,19 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     writer.println("    public " + name + "() {");
     writer.println("            super((" + binderName + ") GWT.create(" + binderName + ".class));");
     writer.println("    }");
+
+    printDependencies(classDeclaration, writer);
+
+    for (Entry<String, String> entry : fieldsMap.entrySet().iterator().next().getValue().entrySet()) {
+      if (entry.getValue().startsWith("com.guit.client.dom")) {
+        if (allFields == null || !allFields.contains(entry.getKey())) {
+          writer.println();
+          writer.println("  @com.guit.client.apt.Generated");
+          writer.println("  @com.guit.client.binder.ViewField");
+          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
+        }
+      }
+    }
 
     writer.println("}");
     writer.close();

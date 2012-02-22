@@ -42,7 +42,7 @@ public class W3cDomHelper {
     } catch (ParserConfigurationException e) {
       throw new RuntimeException(e);
     }
-//    builder.setEntityResolver(new GwtResourceEntityResolver());
+    builder.setEntityResolver(new GwtResourceEntityResolver());
     builder.setErrorHandler(new ErrorHandler() {
 
       @Override
