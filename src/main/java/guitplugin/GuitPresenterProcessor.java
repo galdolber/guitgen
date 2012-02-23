@@ -39,7 +39,6 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
 
 import guitplugin.guitview.GuitViewHelper;
 
@@ -58,6 +57,8 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   private Elements elementsUtil;
 
   private Filer filer;
+
+  private FilerUtil filerUtil;
 
   private Types typeUtils;
   private ProcessingEnvironment env;
@@ -132,6 +133,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     env = processingEnv;
+    this.filerUtil = new FilerUtil(env);
     this.elementsUtil = env.getElementUtils();
     this.filer = env.getFiler();
     this.typeUtils = env.getTypeUtils();
@@ -187,7 +189,6 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           } catch (Exception ex) {
             ex.printStackTrace();
             printMessage(Kind.ERROR, d.getQualifiedName() + ": " + ex.toString(), d);
-            printMessage(Kind.NOTE, d.getQualifiedName() + ": " + ex.toString(), d);
           }
         }
       }
@@ -196,7 +197,11 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   }
 
   private void printMessage(Kind kind, String msg, Element e) {
+    // This is for maven
+    System.out.println(msg);
     new RuntimeException().printStackTrace();
+
+    // Actual error (not showing up anywhere correctly)
     env.getMessager().printMessage(kind, msg, e);
   }
 
@@ -247,13 +252,14 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
   private void generatePresenterSuper(TypeElement classDeclaration,
       HashMap<String, HashMap<String, String>> fieldsMap) {
+
     String packageName = elementsUtil.getPackageOf(classDeclaration).getQualifiedName().toString();
     String simpleName = classDeclaration.getSimpleName().toString();
     String name = simpleName + "Presenter";
     String qualifiedName = packageName + "." + name;
+
     PrintWriter writer = getPrintWriter(qualifiedName);
     writer.println("package " + packageName + ";");
-    Generated.printGeneratedImport(writer);
     writer.println();
 
     Generated.printGenerated(writer, simpleName);
@@ -319,63 +325,35 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   }
 
   private void printDependencies(TypeElement classDeclaration, PrintWriter writer) {
-    Collection<? extends AnnotationMirror> annotations = classDeclaration.getAnnotationMirrors();
-    for (AnnotationMirror a : annotations) {
-      Element decl = a.getAnnotationType().asElement();
-      if (decl == null) {
+    HashMap<String, String> imports = new HashMap<String, String>();
+
+    String[] lines = filerUtil.readSource(classDeclaration).split("\\r?\\n");
+    String injections = null;
+    for (String l : lines) {
+      l = l.trim();
+      if (l.isEmpty()) {
         continue;
       }
+      if (l.startsWith("import ")) {
+        l = l.substring(7, l.length() - 1);
+        imports.put(l.substring(l.lastIndexOf(".") + 1), l);
+      } else if (l.startsWith("@Injections")) {
+        injections = l;
+        String substring = injections.substring(13, injections.length() - 2);
+        for (String clazz : substring.split(",")) {
+          clazz = clazz.trim();
+          clazz = clazz.substring(0, clazz.length() - 6);
 
-      String qualifiedName = ((TypeElement) decl).getQualifiedName().toString();
-      if (qualifiedName.equals("com.guit.client.apt.Injections")) {
-        
-        HashMap<String, String> imports = new HashMap<String, String>();
-        
-        String[] lines = readSource(classDeclaration).split("\\r?\\n");
-        String injections = null;
-        for (String l : lines) {
-          l = l.trim();
-          if (l.isEmpty()) {
-            continue;
+          writer.println();
+          if (imports.containsKey(clazz)) {
+            clazz = imports.get(clazz);
           }
-          if (l.startsWith("import ")) {
-            l = l.substring(7, l.length() - 1);
-            imports.put(l.substring(l.lastIndexOf(".") + 1), l);
-          } else if (l.startsWith("@Injections")) {
-            injections = l;
-            String substring = injections.substring(13, injections.length() - 2);
-            for (String clazz : substring.split(",")) {
-              clazz = clazz.trim();
-              clazz = clazz.substring(0, clazz.length() - 6);
-              
-              writer.println();
-              if (imports.containsKey(clazz)) {
-                clazz = imports.get(clazz);
-              }
-              String name = clazz.substring(clazz.lastIndexOf(".") + 1);
-              writer.println("  @com.google.inject.Inject");
-              writer.println("  " + clazz + " " + name.substring(0, 1).toLowerCase()
-                  + name.substring(1) + ";");
-            }
-            return;
-          }
+          String name = clazz.substring(clazz.lastIndexOf(".") + 1);
+          writer.println("  @com.google.inject.Inject");
+          writer.println("  " + clazz + " " + name.substring(0, 1).toLowerCase()
+              + name.substring(1) + ";");
         }
-      }
-    }
-  }
-
-  private String readSource(TypeElement type) {
-    try {
-      return filer.getResource(StandardLocation.SOURCE_PATH,
-          elementsUtil.getPackageOf(type).getQualifiedName(), type.getSimpleName() + ".java")
-          .getCharContent(true).toString();
-    } catch (Exception e) {
-      try {
-        return filer.getResource(StandardLocation.CLASS_OUTPUT,
-            elementsUtil.getPackageOf(type).getQualifiedName(), type.getSimpleName() + ".java")
-            .getCharContent(true).toString();
-      } catch (Exception e2) {
-        return null;
+        return;
       }
     }
   }
@@ -440,8 +418,6 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     writer.println("            super((" + binderName + ") GWT.create(" + binderName + ".class));");
     writer.println("    }");
 
-    printDependencies(classDeclaration, writer);
-
     for (Entry<String, String> entry : fieldsMap.entrySet().iterator().next().getValue().entrySet()) {
       if (entry.getValue().startsWith("com.guit.client.dom")) {
         if (allFields == null || !allFields.contains(entry.getKey())) {
@@ -452,6 +428,8 @@ public class GuitPresenterProcessor extends AbstractProcessor {
         }
       }
     }
+
+    printDependencies(classDeclaration, writer);
 
     writer.println("}");
     writer.close();

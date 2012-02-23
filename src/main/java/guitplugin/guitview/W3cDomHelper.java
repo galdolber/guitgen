@@ -103,9 +103,9 @@ public class W3cDomHelper {
     try {
       InputStream openInputStream = null;
       try {
-        openInputStream = filer.getResource(StandardLocation.SOURCE_PATH, pkg + ".view", file).openInputStream();
+        openInputStream = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg + ".view", file).openInputStream();
       } catch (Exception e) {
-        openInputStream = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg + ".view", file).openInputStream();        
+        openInputStream = filer.getResource(StandardLocation.SOURCE_PATH, pkg + ".view", file).openInputStream();                
       }
       final Document document = getBuilder().parse(openInputStream);
       documents.add(new LazyDocument() {
