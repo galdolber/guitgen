@@ -6,6 +6,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -16,7 +17,6 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
-import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -101,8 +101,13 @@ public class W3cDomHelper {
       ArrayList<LazyDocument> documents) {
 
     try {
-      FileObject fview = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg + ".view", file);
-      final Document document = getBuilder().parse(fview.openInputStream());
+      InputStream openInputStream = null;
+      try {
+        openInputStream = filer.getResource(StandardLocation.SOURCE_PATH, pkg + ".view", file).openInputStream();
+      } catch (Exception e) {
+        openInputStream = filer.getResource(StandardLocation.CLASS_OUTPUT, pkg + ".view", file).openInputStream();        
+      }
+      final Document document = getBuilder().parse(openInputStream);
       documents.add(new LazyDocument() {
         @Override
         public Document get() {
