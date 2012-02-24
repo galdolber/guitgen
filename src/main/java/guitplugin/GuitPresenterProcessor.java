@@ -39,6 +39,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 
 import guitplugin.guitview.GuitViewHelper;
 
@@ -57,8 +58,6 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   private Elements elementsUtil;
 
   private Filer filer;
-
-  private FilerUtil filerUtil;
 
   private Types typeUtils;
   private ProcessingEnvironment env;
@@ -133,7 +132,11 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     env = processingEnv;
-    this.filerUtil = new FilerUtil(env);
+
+    if (roundEnv.processingOver()) {
+      return false;
+    }
+
     this.elementsUtil = env.getElementUtils();
     this.filer = env.getFiler();
     this.typeUtils = env.getTypeUtils();
@@ -187,22 +190,28 @@ public class GuitPresenterProcessor extends AbstractProcessor {
               }
             }
           } catch (Exception ex) {
-            ex.printStackTrace();
             printMessage(Kind.ERROR, d.getQualifiedName() + ": " + ex.toString(), d);
           }
         }
       }
     }
-    return true;
+    return false;
   }
 
   private void printMessage(Kind kind, String msg, Element e) {
-    // This is for maven
-    System.out.println(msg);
-    new RuntimeException().printStackTrace();
-
-    // Actual error (not showing up anywhere correctly)
+    if (isEclipse()) {
+      env.getMessager().printMessage(Kind.NOTE, msg, e);  
+    }
     env.getMessager().printMessage(kind, msg, e);
+  }
+
+  private boolean isEclipse() {
+    try {
+      filer.getResource(StandardLocation.SOURCE_PATH, "", "");
+      return false;
+    } catch (Exception e) {
+      return true;
+    }
   }
 
   private boolean isWidget(TypeElement d) {
@@ -325,9 +334,21 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   }
 
   private void printDependencies(TypeElement classDeclaration, PrintWriter writer) {
+    try {
+      printDependenciesMaven(classDeclaration, writer, filer.getResource(
+          StandardLocation.SOURCE_PATH,
+          elementsUtil.getPackageOf(classDeclaration).getQualifiedName().toString(),
+          classDeclaration.getSimpleName() + ".java").getCharContent(true).toString());
+    } catch (Exception e) {
+      printDependenciesEclipse(classDeclaration, writer);
+    }
+  }
+
+  private void printDependenciesMaven(TypeElement classDeclaration, PrintWriter writer,
+      String source) {
     HashMap<String, String> imports = new HashMap<String, String>();
 
-    String[] lines = filerUtil.readSource(classDeclaration).split("\\r?\\n");
+    String[] lines = source.split("\\r?\\n");
     String injections = null;
     for (String l : lines) {
       l = l.trim();
@@ -354,6 +375,37 @@ public class GuitPresenterProcessor extends AbstractProcessor {
               + name.substring(1) + ";");
         }
         return;
+      }
+    }
+  }
+
+  private void printDependenciesEclipse(TypeElement classDeclaration, PrintWriter writer) {
+    List<? extends AnnotationMirror> annotations = classDeclaration.getAnnotationMirrors();
+    for (AnnotationMirror a : annotations) {
+      String annName =
+          ((TypeElement) a.getAnnotationType().asElement()).getQualifiedName().toString();
+      if (annName.equals("com.guit.client.apt.Injections")) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> values = a.getElementValues();
+        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> v : values.entrySet()) {
+          if (v.getKey().getSimpleName().toString().equals("value")) {
+            List<?> classes = (List<?>) v.getValue().getValue();
+            for (Object inject : classes) {
+              String clazz = inject.toString();
+              if (clazz.equals("<error>")) {
+                return;
+              }
+              writer.println();
+              if (clazz.endsWith(".class")) {
+                clazz = clazz.substring(0, clazz.length() - 6);
+              }
+              String name = clazz.substring(clazz.lastIndexOf(".") + 1);
+              writer.println("  @com.google.inject.Inject");
+              writer.println("  " + clazz + " " + name.substring(0, 1).toLowerCase()
+                  + name.substring(1) + ";");
+            }
+            return;
+          }
+        }
       }
     }
   }
