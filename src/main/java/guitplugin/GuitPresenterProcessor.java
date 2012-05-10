@@ -190,6 +190,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           } catch (Exception ex) {
             // printMessage(Kind.ERROR, d.getQualifiedName() + ": " +
             // ex.toString(), d);
+            ex.printStackTrace();
           }
         }
       }
