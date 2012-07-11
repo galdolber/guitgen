@@ -241,10 +241,35 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   private void generatePresenterSuper(TypeElement classDeclaration,
       HashMap<String, HashMap<String, String>> fieldsMap) {
 
+    Boolean elemental = false;
+
+    // Validate autofocus and gwt editor
+    Collection<? extends AnnotationMirror> annotations = classDeclaration.getAnnotationMirrors();
+    for (AnnotationMirror a : annotations) {
+      Element decl = a.getAnnotationType().asElement();
+      if (decl == null) {
+        continue;
+      }
+
+      String qualifiedName = ((TypeElement) decl).getQualifiedName().toString();
+      if (qualifiedName.equals("com.guit.client.apt.GwtPresenter")) {
+        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> e : a.getElementValues()
+            .entrySet()) {
+          String name = e.getKey().getSimpleName().toString();
+          if (name.equals("elemental")) {
+            elemental = (Boolean) e.getValue().getValue();
+          }
+        }
+      }
+    }
+
     String packageName = elementsUtil.getPackageOf(classDeclaration).getQualifiedName().toString();
     String simpleName = classDeclaration.getSimpleName().toString();
     String name = simpleName + "Presenter";
     String qualifiedName = packageName + "." + name;
+
+    System.out.println(name + " " + elemental);
+    env.getMessager().printMessage(Kind.ERROR, name + " " + elemental);
 
     PrintWriter writer = getPrintWriter(qualifiedName);
     writer.println("package " + packageName + ";");
@@ -267,7 +292,9 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           writer.println();
           writer.println("  @com.guit.client.apt.Generated");
           writer.println("  @com.guit.client.binder.ViewField");
-          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
+          writer.println("  "
+              + (elemental ? getElementalElementFor(entry.getValue()) : entry.getValue()) + " "
+              + entry.getKey() + ";");
         } else if (isPresenter(elementsUtil.getTypeElement(entry.getValue()))) {
           writer.println();
           writer.println("  @com.guit.client.apt.Generated");
@@ -280,6 +307,10 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
     writer.println("}");
     writer.close();
+  }
+
+  private String getElementalElementFor(String name) {
+    return "elemental.js.html.Js" + name.substring(name.lastIndexOf(".") + 1);
   }
 
   private boolean isPresenter(TypeElement type) {
@@ -463,6 +494,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   @SuppressWarnings("unchecked")
   private void processPresenterWithOneXml(TypeElement classDeclaration, String viewName,
       HashMap<String, String> hashMap) {
+
     // Validate autofocus and gwt editor
     Collection<? extends AnnotationMirror> annotations = classDeclaration.getAnnotationMirrors();
     for (AnnotationMirror a : annotations) {
@@ -475,7 +507,8 @@ public class GuitPresenterProcessor extends AbstractProcessor {
       if (qualifiedName.equals("com.guit.client.apt.GwtPresenter")) {
         for (Entry<? extends ExecutableElement, ? extends AnnotationValue> e : a.getElementValues()
             .entrySet()) {
-          if (e.getKey().getSimpleName().toString().equals("autofocus")) {
+          String name = e.getKey().getSimpleName().toString();
+          if (name.equals("autofocus")) {
             String field = (String) e.getValue().getValue();
             if (!hashMap.containsKey(field)) {
               printMessage(Kind.ERROR, viewName + ". " + "The field '" + field
