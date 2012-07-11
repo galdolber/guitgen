@@ -268,9 +268,6 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     String name = simpleName + "Presenter";
     String qualifiedName = packageName + "." + name;
 
-    System.out.println(name + " " + elemental);
-    env.getMessager().printMessage(Kind.ERROR, name + " " + elemental);
-
     PrintWriter writer = getPrintWriter(qualifiedName);
     writer.println("package " + packageName + ";");
     writer.println();
@@ -309,8 +306,75 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     writer.close();
   }
 
+  static HashMap<String, String> element2dom = new HashMap<String, String>();
+  static {
+    element2dom.put("frameset", "com.google.gwt.dom.client.FrameSetElement");
+    element2dom.put("canvas", "com.google.gwt.dom.client.CanvasElement");
+    element2dom.put("tr", "com.google.gwt.dom.client.TableRowElement");
+    element2dom.put("textarea", "com.google.gwt.dom.client.TextAreaElement");
+    element2dom.put("area", "com.google.gwt.dom.client.AreaElement");
+    element2dom.put("select", "com.google.gwt.dom.client.SelectElement");
+    element2dom.put("td", "com.google.gwt.dom.client.TableCellElement");
+    element2dom.put("th", "com.google.gwt.dom.client.TableCellElement");
+    element2dom.put("source", "com.google.gwt.dom.client.SourceElement");
+    element2dom.put("label", "com.google.gwt.dom.client.LabelElement");
+    element2dom.put("param", "com.google.gwt.dom.client.ParamElement");
+    element2dom.put("ol", "com.google.gwt.dom.client.OListElement");
+    element2dom.put("optgroup", "com.google.gwt.dom.client.OptGroupElement");
+    element2dom.put("title", "com.google.gwt.dom.client.TitleElement");
+    element2dom.put("span", "com.google.gwt.dom.client.SpanElement");
+    element2dom.put("script", "com.google.gwt.dom.client.ScriptElement");
+    element2dom.put("video", "com.google.gwt.dom.client.VideoElement");
+    element2dom.put("audio", "com.google.gwt.dom.client.AudioElement");
+    element2dom.put("form", "com.google.gwt.dom.client.FormElement");
+    element2dom.put("ins", "com.google.gwt.dom.client.ModElement");
+    element2dom.put("del", "com.google.gwt.dom.client.ModElement");
+    element2dom.put("dl", "com.google.gwt.dom.client.DListElement");
+    element2dom.put("map", "com.google.gwt.dom.client.MapElement");
+    element2dom.put("base", "com.google.gwt.dom.client.BaseElement");
+    element2dom.put("tbody", "com.google.gwt.dom.client.TableSectionElement");
+    element2dom.put("tfoot", "com.google.gwt.dom.client.TableSectionElement");
+    element2dom.put("thead", "com.google.gwt.dom.client.TableSectionElement");
+    element2dom.put("pre", "com.google.gwt.dom.client.PreElement");
+    element2dom.put("ul", "com.google.gwt.dom.client.UListElement");
+    element2dom.put("img", "com.google.gwt.dom.client.ImageElement");
+    element2dom.put("a", "com.google.gwt.dom.client.AnchorElement");
+    element2dom.put("option", "com.google.gwt.dom.client.OptionElement");
+    element2dom.put("button", "com.google.gwt.dom.client.ButtonElement");
+    element2dom.put("object", "com.google.gwt.dom.client.ObjectElement");
+    element2dom.put("legend", "com.google.gwt.dom.client.LegendElement");
+    element2dom.put("body", "com.google.gwt.dom.client.BodyElement");
+    element2dom.put("br", "com.google.gwt.dom.client.BRElement");
+    element2dom.put("li", "com.google.gwt.dom.client.LIElement");
+    element2dom.put("link", "com.google.gwt.dom.client.LinkElement");
+    element2dom.put("iframe", "com.google.gwt.dom.client.IFrameElement");
+    element2dom.put("table", "com.google.gwt.dom.client.TableElement");
+    element2dom.put("frame", "com.google.gwt.dom.client.FrameElement");
+    element2dom.put("p", "com.google.gwt.dom.client.ParagraphElement");
+    element2dom.put("head", "com.google.gwt.dom.client.HeadElement");
+    element2dom.put("col", "com.google.gwt.dom.client.TableColElement");
+    element2dom.put("colgroup", "com.google.gwt.dom.client.TableColElement");
+    element2dom.put("blockquote", "com.google.gwt.dom.client.QuoteElement");
+    element2dom.put("q", "com.google.gwt.dom.client.QuoteElement");
+    element2dom.put("caption", "com.google.gwt.dom.client.TableCaptionElement");
+    element2dom.put("style", "com.google.gwt.dom.client.StyleElement");
+    element2dom.put("input", "com.google.gwt.dom.client.InputElement");
+    element2dom.put("h1", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("h2", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("h3", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("h4", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("h5", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("h6", "com.google.gwt.dom.client.HeadingElement");
+    element2dom.put("div", "com.google.gwt.dom.client.DivElement");
+    element2dom.put("meta", "com.google.gwt.dom.client.MetaElement");
+    element2dom.put("fieldset", "com.google.gwt.dom.client.FieldSetElement");
+    element2dom.put("hr", "com.google.gwt.dom.client.HRElement");
+  }
+
   private String getElementalElementFor(String name) {
-    return "elemental.js.html.Js" + name.substring(name.lastIndexOf(".") + 1);
+    String tagname = name.toLowerCase().substring(name.lastIndexOf(".") + 1);
+    String gwtnode = element2dom.get(tagname);
+    return "elemental.js.html.Js" + gwtnode.substring(gwtnode.lastIndexOf(".") + 1);
   }
 
   private boolean isPresenter(TypeElement type) {

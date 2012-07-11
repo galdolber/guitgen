@@ -83,7 +83,9 @@ public class GuitViewHelper {
       } else {
         // Html elements
         name = node.getNodeName();
-        name = name.substring(0, 1).toUpperCase() + name.substring(1).toLowerCase();
+        name =
+            name.substring(0, 1).toUpperCase()
+                + (name.length() > 1 ? name.substring(1).toLowerCase() : "");
         namespace = "com.guit.client.dom";
       }
       uiFields.put(node.getAttribute(uiFieldAttribute), namespace + "." + name);
