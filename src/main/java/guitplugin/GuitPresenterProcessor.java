@@ -298,6 +298,11 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           writer.println("  @com.google.inject.Inject");
           writer.println("  @com.guit.client.binder.ViewField(provided = true)");
           writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
+        } else {
+          writer.println();
+          writer.println("  @com.guit.client.apt.Generated");
+          writer.println("  @com.guit.client.binder.ViewField");
+          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
         }
       }
     }
