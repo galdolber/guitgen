@@ -377,9 +377,13 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   }
 
   private String getElementalElementFor(String name) {
-    String tagname = name.toLowerCase().substring(name.lastIndexOf(".") + 1);
-    String gwtnode = element2dom.get(tagname);
-    return "elemental.js.html.Js" + gwtnode.substring(gwtnode.lastIndexOf(".") + 1);
+    try {
+      String tagname = name.toLowerCase().substring(name.lastIndexOf(".") + 1);
+      String gwtnode = element2dom.get(tagname);
+      return "elemental.js.html.Js" + gwtnode.substring(gwtnode.lastIndexOf(".") + 1);
+    } catch (Exception e) {
+      return "elemental.js.dom.JsElement";
+    }
   }
 
   private boolean isPresenter(TypeElement type) {
@@ -778,32 +782,32 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             continue;
           }
 
-//          String name = p.getSimpleName().toString();
-//          String[] parts = name.split("[$]");
-//
-//          HashMap<String, ExecutableElement> validFields = getValidFields(eventType);
-//          StringBuilder sb = new StringBuilder();
-//          for (String part : parts) {
-//
-//            if (sb.length() > 0) {
-//              sb.append(".");
-//            }
-//
-//            if (!validFields.keySet().contains(part)) {
-//              printMessage(Kind.ERROR, viewName + ". " + "The event '"
-//                  + eventType.getQualifiedName() + "' does not have a getter method for '"
-//                  + sb.toString() + part + "'", p);
-//              break;
-//            }
-//
-//            TypeMirror returnClassType = validFields.get(part).getReturnType();
-//            if (typeUtils.asElement(returnClassType) instanceof TypeElement) {
-//              validFields = getValidFields((TypeElement) typeUtils.asElement(returnClassType));
-//            } else {
-//              // TODO Support for generics
-//            }
-//            sb.append(part);
-//          }
+          // String name = p.getSimpleName().toString();
+          // String[] parts = name.split("[$]");
+          //
+          // HashMap<String, ExecutableElement> validFields = getValidFields(eventType);
+          // StringBuilder sb = new StringBuilder();
+          // for (String part : parts) {
+          //
+          // if (sb.length() > 0) {
+          // sb.append(".");
+          // }
+          //
+          // if (!validFields.keySet().contains(part)) {
+          // printMessage(Kind.ERROR, viewName + ". " + "The event '"
+          // + eventType.getQualifiedName() + "' does not have a getter method for '"
+          // + sb.toString() + part + "'", p);
+          // break;
+          // }
+          //
+          // TypeMirror returnClassType = validFields.get(part).getReturnType();
+          // if (typeUtils.asElement(returnClassType) instanceof TypeElement) {
+          // validFields = getValidFields((TypeElement) typeUtils.asElement(returnClassType));
+          // } else {
+          // // TODO Support for generics
+          // }
+          // sb.append(part);
+          // }
         }
 
         // TODO Check types
