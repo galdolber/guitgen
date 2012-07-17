@@ -292,7 +292,18 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           writer.println("  "
               + (elemental ? getElementalElementFor(entry.getValue()) : entry.getValue()) + " "
               + entry.getKey() + ";");
+        } else if (isCssResource(elementsUtil.getTypeElement(entry.getValue()))) {
+          writer.println();
+          writer.println("  @com.guit.client.apt.Generated");
+          writer.println("  @com.guit.client.binder.ViewField");
+          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
         } else if (isPresenter(elementsUtil.getTypeElement(entry.getValue()))) {
+          writer.println();
+          writer.println("  @com.guit.client.apt.Generated");
+          writer.println("  @com.google.inject.Inject");
+          writer.println("  @com.guit.client.binder.ViewField(provided = true)");
+          writer.println("  " + entry.getValue() + " " + entry.getKey() + ";");
+        } else if (!entry.getValue().startsWith("com.google.gwt")) {
           writer.println();
           writer.println("  @com.guit.client.apt.Generated");
           writer.println("  @com.google.inject.Inject");
@@ -404,6 +415,19 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     Element superclass = typeUtils.asElement(type.getSuperclass());
     if (superclass != null) {
       return isPresenter((TypeElement) superclass);
+    }
+    return false;
+  }
+  
+  private boolean isCssResource(TypeElement type) {
+    for (TypeMirror i : type.getInterfaces()) {
+      if (i.toString().equals("com.google.gwt.resources.client.CssResource")) {
+        return true;
+      }
+    }
+    Element superclass = typeUtils.asElement(type.getSuperclass());
+    if (superclass != null) {
+      return isCssResource((TypeElement) superclass);
     }
     return false;
   }
