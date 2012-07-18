@@ -7,7 +7,7 @@ Annotation processing for Guit
 	&lt;dependency&gt;
 	  &lt;groupId&gt;guit&lt;/groupId&gt;
 	  &lt;artifactId&gt;guit-gen&lt;/artifactId&gt;
-	  &lt;version&gt;1.7.0&lt;/version&gt;
+	  &lt;version&gt;1.8.1&lt;/version&gt;
 	&lt;/dependency&gt;
 	
 	&lt;repository&gt;

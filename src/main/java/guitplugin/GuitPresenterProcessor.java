@@ -276,6 +276,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     String extendsPresenter = getExtendsPresenter(classDeclaration);
     TypeElement extendsPresenterElement = elementsUtil.getTypeElement(extendsPresenter);
     Set<String> allFields = getAllField(extendsPresenterElement);
+    allFields.addAll(getAllField(classDeclaration));
     writer.println("public abstract class " + name + " extends " + extendsPresenter + "<"
         + simpleName + "Binder> {");
 
@@ -418,7 +419,7 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     }
     return false;
   }
-  
+
   private boolean isCssResource(TypeElement type) {
     for (TypeMirror i : type.getInterfaces()) {
       if (i.toString().equals("com.google.gwt.resources.client.CssResource")) {
@@ -664,14 +665,15 @@ public class GuitPresenterProcessor extends AbstractProcessor {
             printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
                 + "' is not declared in the view. Valid fields: "
                 + fieldsToString(hashMap.keySet()), f);
-          } else {
-            if (hashMap.get(fieldName).startsWith("com.guit.client.dom")
-                && f.getEnclosingElement().toString().equals(
-                    classDeclaration.getQualifiedName().toString())) {
-              printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
-                  + "' is already declared on the super class", f);
-            }
           }
+          // else {
+          // if (hashMap.get(fieldName).startsWith("com.guit.client.dom")
+          // && f.getEnclosingElement().toString().equals(
+          // classDeclaration.getQualifiedName().toString())) {
+          // printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
+          // + "' is already declared on the super class", f);
+          // }
+          // }
         }
       }
     }
