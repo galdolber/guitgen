@@ -392,9 +392,9 @@ public class GuitPresenterProcessor extends AbstractProcessor {
     try {
       String tagname = name.toLowerCase().substring(name.lastIndexOf(".") + 1);
       String gwtnode = element2dom.get(tagname);
-      return "elemental.js.html.Js" + gwtnode.substring(gwtnode.lastIndexOf(".") + 1);
+      return "elemental.html." + gwtnode.substring(gwtnode.lastIndexOf(".") + 1);
     } catch (Exception e) {
-      return "elemental.js.dom.JsElement";
+      return "elemental.dom.Element";
     }
   }
 
