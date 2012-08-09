@@ -38,7 +38,6 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
-import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
 import guitplugin.guitview.GuitViewHelper;
@@ -145,52 +144,47 @@ public class GuitPresenterProcessor extends AbstractProcessor {
       for (Element e : roundEnv.getElementsAnnotatedWith(ann)) {
         if (e.getKind().equals(ElementKind.CLASS)) {
           TypeElement d = (TypeElement) e;
-          try {
-            generateBinder(d);
 
-            String annName = ann.getQualifiedName().toString();
-            if (annName.equals(GwtController.class.getCanonicalName())) {
-              generateControllerSuper(d);
-              processController(d);
-            } else if (annName.equals(aptPackage + "GwtPresenter")) {
-              HashMap<String, HashMap<String, String>> fieldsMap = null;
-              try {
-                fieldsMap = GuitViewHelper.findUiFields(filer, d);
-              } catch (SAXParseException ex) {
-                printMessage(Kind.NOTE, String.format("Error parsing XML (line "
-                    + ex.getLineNumber() + "): " + ex.getMessage()), d);
-                printMessage(Kind.ERROR, String.format("Error parsing XML (line "
-                    + ex.getLineNumber() + "): " + ex.getMessage()), d);
-                continue;
-              } catch (Exception ex) {
-                throw new RuntimeException(ex);
-              }
+          generateBinder(d);
 
-              generatePresenterSuper(d, fieldsMap);
-              processController(d);
-              for (Entry<String, HashMap<String, String>> entry : fieldsMap.entrySet()) {
-                processPresenterWithOneXml(d, entry.getKey(), entry.getValue());
-              }
+          String annName = ann.getQualifiedName().toString();
+          if (annName.equals(GwtController.class.getCanonicalName())) {
+            generateControllerSuper(d);
+            processController(d);
+          } else if (annName.equals(aptPackage + "GwtPresenter")) {
+            HashMap<String, HashMap<String, String>> fieldsMap = null;
+            try {
+              fieldsMap = GuitViewHelper.findUiFields(filer, d);
+            } catch (SAXParseException ex) {
+              printMessage(Kind.NOTE, String.format("Error parsing XML (line " + ex.getLineNumber()
+                  + "): " + ex.getMessage()), d);
+              printMessage(Kind.ERROR, String.format("Error parsing XML (line "
+                  + ex.getLineNumber() + "): " + ex.getMessage()), d);
+              continue;
+            } catch (Exception ex) {
+              throw new RuntimeException(ex);
             }
 
-            // Containers
-            for (ExecutableElement m : ElementFilter.methodsIn(elementsUtil.getAllMembers(d))) {
-              if (m.getAnnotation(GwtDisplay.class) != null) {
-                Collection<? extends VariableElement> parameters = m.getParameters();
-                if (parameters.size() != 1) {
-                  printMessage(Kind.ERROR, containerError, m);
-                }
-                VariableElement parameter = parameters.iterator().next();
-                if (!parameter.asType().toString().equals("com.google.gwt.user.client.ui.IsWidget")) {
-                  printMessage(Kind.ERROR, containerError, parameter);
-                }
-                processContainerMethod(d, m);
-              }
+            generatePresenterSuper(d, fieldsMap);
+            processController(d);
+            for (Entry<String, HashMap<String, String>> entry : fieldsMap.entrySet()) {
+              processPresenterWithOneXml(d, entry.getKey(), entry.getValue());
             }
-          } catch (Exception ex) {
-            // printMessage(Kind.ERROR, d.getQualifiedName() + ": " +
-            // ex.toString(), d);
-            ex.printStackTrace();
+          }
+
+          // Containers
+          for (ExecutableElement m : ElementFilter.methodsIn(elementsUtil.getAllMembers(d))) {
+            if (m.getAnnotation(GwtDisplay.class) != null) {
+              Collection<? extends VariableElement> parameters = m.getParameters();
+              if (parameters.size() != 1) {
+                printMessage(Kind.ERROR, containerError, m);
+              }
+              VariableElement parameter = parameters.iterator().next();
+              if (!parameter.asType().toString().equals("com.google.gwt.user.client.ui.IsWidget")) {
+                printMessage(Kind.ERROR, containerError, parameter);
+              }
+              processContainerMethod(d, m);
+            }
           }
         }
       }
@@ -436,7 +430,9 @@ public class GuitPresenterProcessor extends AbstractProcessor {
   private Set<String> getAllField(TypeElement clazz) {
     HashSet<String> allFields = new HashSet<String>();
     for (VariableElement f : ElementFilter.fieldsIn(elementsUtil.getAllMembers(clazz))) {
-      allFields.add(f.getSimpleName().toString());
+      if (f.getAnnotation(com.guit.client.apt.Generated.class) == null) {
+        allFields.add(f.getSimpleName().toString());
+      }
     }
     return allFields;
   }
@@ -670,7 +666,8 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           // if (hashMap.get(fieldName).startsWith("com.guit.client.dom")
           // && f.getEnclosingElement().toString().equals(
           // classDeclaration.getQualifiedName().toString())) {
-          // printMessage(Kind.ERROR, viewName + ". " + "The field '" + fieldName
+          // printMessage(Kind.ERROR, viewName + ". " + "The field '" +
+          // fieldName
           // + "' is already declared on the super class", f);
           // }
           // }
@@ -811,7 +808,8 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           // String name = p.getSimpleName().toString();
           // String[] parts = name.split("[$]");
           //
-          // HashMap<String, ExecutableElement> validFields = getValidFields(eventType);
+          // HashMap<String, ExecutableElement> validFields =
+          // getValidFields(eventType);
           // StringBuilder sb = new StringBuilder();
           // for (String part : parts) {
           //
@@ -821,14 +819,16 @@ public class GuitPresenterProcessor extends AbstractProcessor {
           //
           // if (!validFields.keySet().contains(part)) {
           // printMessage(Kind.ERROR, viewName + ". " + "The event '"
-          // + eventType.getQualifiedName() + "' does not have a getter method for '"
+          // + eventType.getQualifiedName() +
+          // "' does not have a getter method for '"
           // + sb.toString() + part + "'", p);
           // break;
           // }
           //
           // TypeMirror returnClassType = validFields.get(part).getReturnType();
           // if (typeUtils.asElement(returnClassType) instanceof TypeElement) {
-          // validFields = getValidFields((TypeElement) typeUtils.asElement(returnClassType));
+          // validFields = getValidFields((TypeElement)
+          // typeUtils.asElement(returnClassType));
           // } else {
           // // TODO Support for generics
           // }
@@ -1071,10 +1071,9 @@ public class GuitPresenterProcessor extends AbstractProcessor {
 
   public PrintWriter getPrintWriter(String qualifiedName) {
     try {
-      JavaFileObject createSourceFile = filer.createSourceFile(qualifiedName);
-      return new PrintWriter(createSourceFile.openWriter());
+      return new PrintWriter(filer.createSourceFile(qualifiedName).openWriter());
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException(qualifiedName, e);
     }
   }
 }
